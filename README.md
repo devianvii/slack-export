@@ -1,6 +1,6 @@
 
 # Slack Exporter
-Originaly forked from: https://github.com/andriuspetrauskis/slack-export which is https://github.com/andriuspetrauskis/slack-export forked repo.
+Originaly forked from: https://github.com/chr1spy1/slack-export which is https://github.com/andriuspetrauskis/slack-export forked repo.
 
 But it has changed a bit. In this version:
 * Adapted to the new version of Slack API. 
