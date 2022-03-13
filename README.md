@@ -1,12 +1,14 @@
-# Slack Exporter
 
-Forked from:
+# [WIP] Slack Exporter
+Originaly forked from: https://github.com/andriuspetrauskis/slack-export which is https://github.com/andriuspetrauskis/slack-export forked repo.
 
-https://github.com/andriuspetrauskis/slack-export
+But it has changed significantly. In this version:
+* Adapted to the new version of Slack API. 
+* Removed redundant functions (to make you and me less worried).
+* Simplified in some places (sorry, everything that is not needed for my task was cut out).
+* Made compatible with latest slack-export-viewer (but replays are arranged randomly :( ).
+* excludeNonMember by default.
 
-Original repo can be found here:
-
-https://github.com/zach-snell/slack-export
 
 ## Description
 
@@ -34,17 +36,10 @@ https://slack.com/intl/en-au/cookie-table#
 ## Dependencies
 ```
 pip install requests  # https://requests.readthedocs.io/en/master/
-pip install pick      # https://github.com/wong2/pick
 ```
 
 ## Basic Usage
 ```
-# Export all Channels and DMs
-python slack_export.py --token xoxc-123... --cookie "b=...; d=...; x=..."
-
-# List the Channels and DMs available for export
-python slack_export.py --token xoxc-123... --cookie "b=...; d=...; x=..." --dryRun
-
 # Prompt you to select the Channels and DMs to export
 python slack_export.py --token xoxc-123... --cookie "b=...; d=...; x=..." --prompt
 
@@ -106,7 +101,7 @@ python slack_export.py --token xoxc-123... --cookie "b=...; d=...; x=..." --publ
 # Export only 1:1 DMs with jane_smith and the Public Channels you select when prompted
 python slack_export.py --token xoxc-123... --cookie "b=...; d=...; x=..." --directMessages jane_smith --publicChannels --prompt
 ```
-This script is provided in an as-is state and I guarantee no updates or quality of service at this time.
+This script is provided in an as-is state, and I guarantee no updates or quality of service at this time.
 
 ## Downloading files and view them inside slack-export-viewer
 
@@ -140,7 +135,7 @@ This is designed to function with 'slack-export-viewer'.
 
 Then you can execute the viewer as documented
 ```
-slack-export-viewer -z zipArchive.zip
+slack-export-viewer -z dump.zip
 ```
 
 
