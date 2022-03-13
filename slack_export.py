@@ -20,7 +20,7 @@ def filter_conversations(conversations):
     return conversations_filtered
 
 
-def dump_files(private_channels, public_channels, im, members):
+def dump_files(private_channels, public_channels, mpim, im, members):
     mkdir(OUTPUT_DIRECTORY)
     os.chdir(OUTPUT_DIRECTORY)
 
@@ -30,6 +30,8 @@ def dump_files(private_channels, public_channels, im, members):
         json.dump(private_channels, outFile, indent=4)
     with open('channels.json', 'w') as outFile:
         json.dump(public_channels, outFile, indent=4)
+    with open('mpims.json', 'w') as outFile:
+        json.dump(mpim, outFile, indent=4)
     with open('dms.json', 'w') as outFile:
         json.dump(im, outFile, indent=4)
     with open('users.json', 'w') as outFile:
@@ -192,6 +194,12 @@ if __name__ == "__main__":
         help="Export the given Public Channels")
 
     parser.add_argument(
+        '--directGroupMessages',
+        action='store_true',
+        default=False,
+        help="Export mpim conversations")
+
+    parser.add_argument(
         '--downloadSlackFiles',
         action='store_true',
         default=False,
@@ -210,14 +218,20 @@ if __name__ == "__main__":
     slack = SlackApiAdapter.SlackApiAdapter(headers=cookie_header, token=args.token)
     private_channels_list = filter_conversations(slack.get_conversations('private_channel'))
     public_channels_list = filter_conversations(slack.get_conversations('public_channel'))
+    mpim_list = slack.get_conversations('mpim')
     im_list = slack.get_conversations('im')
 
     print("private_channels: {}".format(len(private_channels_list)))
     print("public_channels: {}".format(len(public_channels_list)))
+    print("mpim: {}".format(len(mpim_list)))
     print("im: {}".format(len(im_list)))
-    # TODO: убрать заглушку
+
     users = slack.get_users()
-    dump_files(private_channels_list, public_channels_list, im_list, users)
+    # mpim must contain a list of participants
+    # for i, item in enumerate(mpim_list,0):
+    #     mpim_list[]
+
+    dump_files(private_channels_list, public_channels_list, mpim_list, im_list, users)
 
     if args.privateChannels is not None:
         print("Fetching", len(private_channels_list), "private channels")
@@ -242,6 +256,15 @@ if __name__ == "__main__":
             mkdir(channel_dir)
             messages = slack.get_channel_history(channel['id'], args.excludeThreads)
             parse_messages(channel_dir, messages, 'channel')
+
+    if args.directGroupMessages is not None:
+        print("Fetching", len(mpim_list), "direct group messages")
+        for channel in mpim_list:
+            channel_dir = channel['name']
+            print(u"Fetching history for direct group  channel: {0}".format(channel_dir))
+            mkdir(channel_dir)
+            messages = slack.get_channel_history(channel['id'], args.excludeThreads)
+            parse_messages(channel_dir, messages, 'group')
 
     if args.directMessages is not None:
         print("Fetching", len(im_list), "1:1 messages")
