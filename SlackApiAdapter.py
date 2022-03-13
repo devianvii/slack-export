@@ -4,9 +4,9 @@ import sys
 from time import sleep
 
 
-DEFAULT_OBJECTS_LIMIT = 4000
-DEFAULT_TIMEOUT = 10
-DEFAULT_RETRIES = 0
+DEFAULT_OBJECTS_LIMIT = 300000
+DEFAULT_TIMEOUT = 60
+DEFAULT_RETRIES = 3
 # seconds to wait after a 429 error if Slack's API doesn't provide one
 DEFAULT_WAIT = 20
 
@@ -51,7 +51,7 @@ class SlackApiAdapter:
         # off as Slack's HTTP response suggests
         for retry_num in range(self.rate_limit_retries):
             response = request_method(
-                url, timeout=self.timeout, proxies=self.proxies, **kwargs
+                url, timeout=self.timeout, **kwargs
             )
 
             if response.status_code == requests.codes.ok:
@@ -60,9 +60,11 @@ class SlackApiAdapter:
             # handle HTTP 429 as documented at
             # https://api.slack.com/docs/rate-limits
             if response.status_code == requests.codes.too_many:
-                time.sleep(int(
-                    response.headers.get('retry-after', DEFAULT_WAIT)
-                ))
+                retry_in_seconds = int(response.headers.get('retry-after', DEFAULT_WAIT))
+                print("Rate limit hit. Retrying in {0} second{1}.".format(retry_in_seconds,
+                                                                          "s" if retry_in_seconds > 1 else ""))
+                sleep(retry_in_seconds)
+
                 continue
 
             response.raise_for_status()
@@ -179,7 +181,7 @@ class SlackApiAdapter:
 
             replies.extend(response["messages"])
             if response["has_more"]:
-                sys.stdout.write("../slack-export-new")
+                sys.stdout.write(".")
                 sys.stdout.flush()
                 last_timestamp = replies[-1]["ts"]  # -1 means last element in a list
                 sleep(1)  # Respect the Slack API rate limit
@@ -192,7 +194,7 @@ class SlackApiAdapter:
         replies = replies[1:]
         return replies
 
-    def get_channel_history(self, channel_id):
+    def get_channel_history(self, channel_id, exclude_threads=False):
         last_timestamp = None
         messages = []
 
@@ -211,30 +213,57 @@ class SlackApiAdapter:
             messages.extend(response['messages'])
 
             if response['has_more']:
-                sys.stdout.write("../slack-export-new")
+                sys.stdout.write(".")
                 sys.stdout.flush()
                 last_timestamp = messages[-1]['ts']  # -1 means last element in a list
-                sleep(0.5)  # Respect the Slack API rate limit
+                sleep(1)  # Respect the Slack API rate limit
             else:
                 break
 
         if last_timestamp is not None:
             print("")
         messages.sort(key=lambda t: t['ts'])
-        replies = []
-        for i, message in enumerate(messages, 0):
-            if message.get('reply_count', 0) > 0:
-                print("Thread found in message {}/{}".format(i, len(messages)))
-                rp = self.get_replies(channel_id, message["thread_ts"])
-                for reply_pos, reply in enumerate(rp, 1):
-                    if messages[i].get('replies'):
-                        messages[i]['replies'].append({'user': reply.get('user'), 'ts': reply['ts']})
-                    else:
-                        messages[i]['replies'] = [{'user': reply.get('user'), 'ts': reply['ts']}]
-                    if reply.get('subtype') == 'thread_broadcast':
-                        continue
-                    replies.append(reply)
-        messages.extend(replies)
-        messages.sort(key=lambda t: t['ts'])
+        if exclude_threads:
+            for i, message in enumerate(messages, 0):
+                if message.get('reply_count') is not None:
+                    messages[i]['replies'] = []
+        else:
+            replies = []
+            for i, message in enumerate(messages, 0):
+                if message.get('reply_count') == 0 and message.get('reply_users_count') == 0:
+                    messages[i]['replies'] = []
+                    continue
+                if message.get('reply_count'):
+                    print("Thread found in message {}/{}".format(i, len(messages)))
+                    rp = self.get_replies(channel_id, message["thread_ts"])
+                    for reply_pos, reply in enumerate(rp, 1):
+                        if messages[i].get('replies'):
+                            messages[i]['replies'].append({'user': reply.get('user'), 'ts': reply['ts']})
+                        else:
+                            messages[i]['replies'] = [{'user': reply.get('user'), 'ts': reply['ts']}]
+                        if reply.get('subtype') == 'thread_broadcast':
+                            continue
+                        replies.append(reply)
+            messages.extend(replies)
+            messages.sort(key=lambda t: t['ts'])
         return messages
+
+    def _users_request(self, presence=False, request_limit=1000, cursor=None):
+        re = 'users.list?limit={limit}'.format(limit=request_limit)
+        if cursor:
+            re += "&cursor={cursor}".format(cursor=cursor)
+        return self.get(re, params={'presence': int(presence)})
+
+    def get_users(self, limit=DEFAULT_OBJECTS_LIMIT):
+        members_list = []
+        req_members = self._users_request()
+        members_list.extend(req_members.body['members'])
+        cursor = req_members.body['response_metadata']['next_cursor']
+        while cursor != '' and len(members_list) < limit:
+            req_members = self._users_request(cursor=cursor)
+            members_list.extend(req_members.body['members'])
+            cursor = req_members.body['response_metadata']['next_cursor']
+            print("Got {} team members".format(len(members_list)))
+        print("Total members: {}".format(len(members_list)))
+        return members_list
 
