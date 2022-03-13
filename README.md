@@ -33,7 +33,7 @@ To view history you will need `slack-export-viewer`.
 1. Export your history with files or without.
 2. Open zip file with `slack-export-viewer`
 
-###1. History export
+### 1. History export
 ```
 python slack_export.py --token <token> --cookie "b=<b>; d=<d>; x=<x>" --directMessages --directGroupMessages --excludeThreads --downloadSlackFiles
 ```
@@ -76,7 +76,7 @@ replace the URLs inside the export to point to the downloaded files assuming the
 
 `--downloadSlackFiles`
 
-###2. Using slack-export-viewer
+### 2. Using slack-export-viewer
 
 `./slack-export-viewer/app.py -z slack-export/dump.zip -p 8081`
 
