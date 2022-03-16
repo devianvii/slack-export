@@ -86,7 +86,7 @@ python slack_export.py --token xoxc-123... --cookie "b=...; d=...; x=..." --priv
 
 # Clone slack-export-viewer from github
 cd ..
-git clone https://github.com/devianvii/slack-export-viewer
+git clone https://github.com/devianvii/slack-export-viewer.git
 
 # Link the files.slack.com archive
 ln -s ../../../slack-export/files.slack.com slack-export-viewer/slackviewer/static/files.slack.com
