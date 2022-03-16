@@ -233,7 +233,7 @@ if __name__ == "__main__":
     if args.directGroupMessages is None:
         mpim_list = None
 
-    if args.args.directMessages is None:
+    if args.directMessages is None:
         im_list = None
 
     users = slack.get_users()
