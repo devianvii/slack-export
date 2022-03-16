@@ -4,7 +4,6 @@ import sys
 from time import sleep
 
 
-DEFAULT_OBJECTS_LIMIT = 300000
 DEFAULT_TIMEOUT = 60
 DEFAULT_RETRIES = 3
 # seconds to wait after a 429 error if Slack's API doesn't provide one
@@ -119,12 +118,12 @@ class SlackApiAdapter:
         )
         return conversations_list
 
-    def get_conversations(self, types, limit=DEFAULT_OBJECTS_LIMIT):
+    def get_conversations(self, types):
         conversations_list = []
         req_conversations = self._conversations_list_request(types=types)
         conversations_list.extend(req_conversations.body['channels'])
         cursor = req_conversations.body['response_metadata']['next_cursor']
-        while cursor != '' and len(conversations_list) < limit:
+        while cursor != '':
             req_conversations = self._conversations_list_request(types=types, cursor=cursor)
             conversations_list.extend(req_conversations.body['channels'])
             cursor = req_conversations.body['response_metadata']['next_cursor']
@@ -197,6 +196,7 @@ class SlackApiAdapter:
     def get_channel_history(self, channel_id, exclude_threads=False):
         last_timestamp = None
         messages = []
+        users = set()
 
         while True:
             try:
@@ -227,14 +227,16 @@ class SlackApiAdapter:
             for i, message in enumerate(messages, 0):
                 if message.get('reply_count') is not None:
                     messages[i]['replies'] = []
+                    users.add(messages[i].get('user'))
         else:
             replies = []
             for i, message in enumerate(messages, 0):
+                users.add(messages[i].get('user'))
                 if message.get('reply_count') == 0 and message.get('reply_users_count') == 0:
                     messages[i]['replies'] = []
                     continue
                 if message.get('reply_count'):
-                    print("Thread found in message {}/{}".format(i, len(messages)))
+                    print(f"Thread found in {channel_id} messages {i}/{len(messages)}")
                     rp = self.get_replies(channel_id, message["thread_ts"])
                     for reply_pos, reply in enumerate(rp, 1):
                         if messages[i].get('replies'):
@@ -243,10 +245,11 @@ class SlackApiAdapter:
                             messages[i]['replies'] = [{'user': reply.get('user'), 'ts': reply['ts']}]
                         if reply.get('subtype') == 'thread_broadcast':
                             continue
+                        users.add(reply.get('user'))
                         replies.append(reply)
             messages.extend(replies)
             messages.sort(key=lambda t: t['ts'])
-        return messages
+        return messages, users
 
     def _users_request(self, presence=False, request_limit=1000, cursor=None):
         re = 'users.list?limit={limit}'.format(limit=request_limit)
@@ -254,16 +257,15 @@ class SlackApiAdapter:
             re += "&cursor={cursor}".format(cursor=cursor)
         return self.get(re, params={'presence': int(presence)})
 
-    def get_users(self, limit=DEFAULT_OBJECTS_LIMIT):
+    def get_users(self):
         members_list = []
         req_members = self._users_request()
         members_list.extend(req_members.body['members'])
         cursor = req_members.body['response_metadata']['next_cursor']
-        while cursor != '' and len(members_list) < limit:
+        while cursor != '':
             req_members = self._users_request(cursor=cursor)
             members_list.extend(req_members.body['members'])
             cursor = req_members.body['response_metadata']['next_cursor']
-            print("Got {} team members".format(len(members_list)))
-        print("Total members: {}".format(len(members_list)))
+            print(f"Fetched {len(members_list)} team members")
+        print(f"Total users fetched: {len(members_list)}")
         return members_list
-

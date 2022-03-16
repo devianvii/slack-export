@@ -20,28 +20,29 @@ def filter_conversations(conversations):
     return conversations_filtered
 
 
-def dump_files(private_channels, public_channels, mpim, im, members):
-    mkdir(OUTPUT_DIRECTORY)
-    os.chdir(OUTPUT_DIRECTORY)
+def dump_users(members):
+    with open('users.json', 'w') as outFile:
+        json.dump(members, outFile, indent=4)
 
-    print("Making dump files")
-    # We will be overwriting this file on each run.
-    if private_channels:
-        with open('groups.json', 'w') as outFile:
-            json.dump(private_channels, outFile, indent=4)
-    if public_channels:
-        with open('channels.json', 'w') as outFile:
-            json.dump(public_channels, outFile, indent=4)
-    if mpim:
-        with open('mpims.json', 'w') as outFile:
-            json.dump(mpim, outFile, indent=4)
-    if im:
-        with open('dms.json', 'w') as outFile:
-            json.dump(im, outFile, indent=4)
-    if members:
-        with open('users.json', 'w') as outFile:
-            json.dump(members, outFile, indent=4)
-    print("Dump files done")
+
+def dump_private_channels_list(private_channels):
+    with open('groups.json', 'w') as outFile:
+        json.dump(private_channels, outFile, indent=4)
+
+
+def dump_public_channels_list(public_channels):
+    with open('channels.json', 'w') as outFile:
+        json.dump(public_channels, outFile, indent=4)
+
+
+def dump_mpim_list(mpim):
+    with open('mpims.json', 'w') as outFile:
+        json.dump(mpim, outFile, indent=4)
+
+
+def dump_im_list(im):
+    with open('dms.json', 'w') as outFile:
+        json.dump(im, outFile, indent=4)
 
 
 def mkdir(directory):
@@ -171,6 +172,15 @@ def downloadFiles(token, cookie_header=None):
             print("Replaced all files in %s" % filePath)
 
 
+def filter_users(users_list, users_white_list):
+    filtered_users_list = []
+    print(users_white_list)
+    for user in users_list:
+        if user['id'] in users_white_list:
+            filtered_users_list.append(user)
+    return filtered_users_list
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Export Slack history')
     parser.add_argument('--token', required=True, help="Slack API token")
@@ -219,29 +229,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     cookie_header = {'cookie': args.cookie}
+
     slack = SlackApiAdapter.SlackApiAdapter(headers=cookie_header, token=args.token)
-    private_channels_list = filter_conversations(slack.get_conversations('private_channel'))
-    public_channels_list = filter_conversations(slack.get_conversations('public_channel'))
-    mpim_list = slack.get_conversations('mpim')
-    im_list = slack.get_conversations('im')
 
-    print("private_channels: {}".format(len(private_channels_list)))
-    print("public_channels: {}".format(len(public_channels_list)))
-    print("mpim: {}".format(len(mpim_list)))
-    print("im: {}".format(len(im_list)))
-
-    if args.directGroupMessages is None:
-        mpim_list = None
-
-    if args.directMessages is None:
-        im_list = None
-
-    users = slack.get_users()
-
-    dump_files(private_channels_list, public_channels_list, mpim_list, im_list, users)
+    users_white_list = set()
+    mkdir(OUTPUT_DIRECTORY)
+    os.chdir(OUTPUT_DIRECTORY)
 
     if args.privateChannels is not None:
-        print("Fetching", len(private_channels_list), "private channels")
+        private_channels_list = filter_conversations(slack.get_conversations('private_channel'))
+        dump_private_channels_list(private_channels_list)
+        print("Fetching messages from", len(private_channels_list), "private channels")
         for channel in private_channels_list:
             if args.privateChannels != [] and channel['name'] not in args.privateChannels:
                 print(u"Private channel {0} not in the WhiteList. Passed.".format(channel['name']))
@@ -249,11 +247,14 @@ if __name__ == "__main__":
             channel_dir = channel['name']
             print(u"Fetching history for channel: {0}".format(channel_dir))
             mkdir(channel_dir)
-            messages = slack.get_channel_history(channel['id'], args.excludeThreads)
+            messages, channel_members = slack.get_channel_history(channel['id'], args.excludeThreads)
+            users_white_list.update(channel_members)
             parse_messages(channel_dir, messages, 'group')
 
     if args.publicChannels is not None:
-        print("Fetching", len(public_channels_list), "public channels")
+        public_channels_list = filter_conversations(slack.get_conversations('public_channel'))
+        dump_public_channels_list(public_channels_list)
+        print("Fetching messages from", len(public_channels_list), "public channels")
         for channel in public_channels_list:
             if args.publicChannels != [] and channel['name'] not in args.publicChannels:
                 print(u"Public channel {0} not in the WhiteList. Passed.".format(channel['name']))
@@ -261,26 +262,37 @@ if __name__ == "__main__":
             channel_dir = channel['name']
             print(u"Fetching history for channel: {0}".format(channel_dir))
             mkdir(channel_dir)
-            messages = slack.get_channel_history(channel['id'], args.excludeThreads)
+            messages, channel_members = slack.get_channel_history(channel['id'], args.excludeThreads)
+            users_white_list.update(channel_members)
             parse_messages(channel_dir, messages, 'channel')
 
     if args.directGroupMessages is not None:
-        print("Fetching", len(mpim_list), "direct group messages")
+        mpim_list = slack.get_conversations('mpim')
+        dump_mpim_list(mpim_list)
+        print("Fetching messages from", len(mpim_list), "direct groups")
         for channel in mpim_list:
             channel_dir = channel['name']
             print(u"Fetching history for direct group  channel: {0}".format(channel_dir))
             mkdir(channel_dir)
-            messages = slack.get_channel_history(channel['id'], args.excludeThreads)
+            messages, channel_members = slack.get_channel_history(channel['id'], args.excludeThreads)
+            users_white_list.update(channel_members)
             parse_messages(channel_dir, messages, 'group')
 
     if args.directMessages is not None:
-        print("Fetching", len(im_list), "1:1 messages")
+        im_list = slack.get_conversations('im')
+        dump_im_list(im_list)
+        print("Fetching messages from", len(im_list), "1:1 conversations")
         for channel in im_list:
             channel_dir = channel['id']
             print(u"Fetching history for 1:1 channel: {0}".format(channel_dir))
             mkdir(channel_dir)
-            messages = slack.get_channel_history(channel['id'], args.excludeThreads)
+            messages, channel_members = slack.get_channel_history(channel['id'], args.excludeThreads)
+            users_white_list.update(channel_members)
             parse_messages(channel_dir, messages, 'im')
+
+    users = filter_users(slack.get_users(), users_white_list)
+    print(f"Users in chats:{len(users)}")
+    dump_users(users)
 
     if args.downloadSlackFiles:
         downloadFiles(token=args.token, cookie_header=cookie_header)

@@ -6,7 +6,7 @@ But it has changed a bit. In this version:
 * Adapted to the new version of Slack API. 
 * Removed redundant functions (to make you and me less worried).
 * Simplified in some places (sorry, everything that is not needed for my purpose was bloody cut out).
-* Made compatible with latest `slack-export-viewer` (but replays are arranged randomly :(. I think it is `slack-export-viewer` problem, I need time to find out).
+* Made compatible with latest `slack-export-viewer` (but replays are arranged randomly :(. It is `slack-export-viewer` problem, there are a version with hotfix https://github.com/devianvii/slack-export-viewer).
 * excludeNonMember by default (you don't need these conversations, right?).
 * Makes a zip file by default.
 
