@@ -26,16 +26,21 @@ def dump_files(private_channels, public_channels, mpim, im, members):
 
     print("Making dump files")
     # We will be overwriting this file on each run.
-    with open('groups.json', 'w') as outFile:
-        json.dump(private_channels, outFile, indent=4)
-    with open('channels.json', 'w') as outFile:
-        json.dump(public_channels, outFile, indent=4)
-    with open('mpims.json', 'w') as outFile:
-        json.dump(mpim, outFile, indent=4)
-    with open('dms.json', 'w') as outFile:
-        json.dump(im, outFile, indent=4)
-    with open('users.json', 'w') as outFile:
-        json.dump(members, outFile, indent=4)
+    if private_channels:
+        with open('groups.json', 'w') as outFile:
+            json.dump(private_channels, outFile, indent=4)
+    if public_channels:
+        with open('channels.json', 'w') as outFile:
+            json.dump(public_channels, outFile, indent=4)
+    if mpim:
+        with open('mpims.json', 'w') as outFile:
+            json.dump(mpim, outFile, indent=4)
+    if im:
+        with open('dms.json', 'w') as outFile:
+            json.dump(im, outFile, indent=4)
+    if members:
+        with open('users.json', 'w') as outFile:
+            json.dump(members, outFile, indent=4)
     print("Dump files done")
 
 
@@ -152,8 +157,7 @@ def downloadFiles(token, cookie_header=None):
                                 continue
 
                             # Download files
-                            headers = {"Authorization": f"Bearer {token}",
-                                       **cookie_header}
+                            headers = {"Authorization": "Bearer {}".format(token), **cookie_header}
                             r = requests.get(url.geturl(), headers=headers)
                             open(localFile, 'wb').write(r.content)
 
@@ -196,7 +200,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--directGroupMessages',
         action='store_true',
-        default=False,
+        default=None,
         help="Export mpim conversations")
 
     parser.add_argument(
@@ -226,10 +230,13 @@ if __name__ == "__main__":
     print("mpim: {}".format(len(mpim_list)))
     print("im: {}".format(len(im_list)))
 
+    if args.directGroupMessages is None:
+        mpim_list = None
+
+    if args.args.directMessages is None:
+        im_list = None
+
     users = slack.get_users()
-    # mpim must contain a list of participants
-    # for i, item in enumerate(mpim_list,0):
-    #     mpim_list[]
 
     dump_files(private_channels_list, public_channels_list, mpim_list, im_list, users)
 
