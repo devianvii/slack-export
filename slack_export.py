@@ -31,16 +31,6 @@ def dump_file(list_to_dump, type):
         json.dump(list_to_dump, outFile, indent=4)
 
 
-def dump_users(members):
-    with open('users.json', 'w') as outFile:
-        json.dump(members, outFile, indent=4)
-
-
-def dump_im_list(im):
-    with open('dms.json', 'w') as outFile:
-        json.dump(im, outFile, indent=4)
-
-
 def mkdir(directory):
     if not os.path.isdir(directory):
         os.makedirs(directory)
