@@ -11,15 +11,6 @@ import SlackApiAdapter
 OUTPUT_DIRECTORY = 'dump'
 
 
-def filter_conversations(conversations):
-    conversations_filtered = []
-    for conversation in conversations:
-        if not conversation['is_member']:
-            continue
-        conversations_filtered.append(conversation)
-    return conversations_filtered
-
-
 def dump_file(list_to_dump, type):
     file_names = {
         'private_channels': 'groups.json',
@@ -158,15 +149,6 @@ def downloadFiles(token, cookie_header=None):
             print("Replaced all files in %s" % filePath)
 
 
-def filter_users(users_list, users_white_list):
-    filtered_users_list = []
-    print(users_white_list)
-    for user in users_list:
-        if user['id'] in users_white_list:
-            filtered_users_list.append(user)
-    return filtered_users_list
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Export Slack history')
     parser.add_argument('--token', required=True, help="Slack API token")
@@ -223,7 +205,7 @@ if __name__ == "__main__":
     os.chdir(OUTPUT_DIRECTORY)
 
     if args.privateChannels is not None:
-        private_channels_list = filter_conversations(slack.get_conversations('private_channel'))
+        private_channels_list = list(filter(lambda conversation: conversation['is_member'], slack.get_conversations('private_channel')))
         dump_file(private_channels_list, 'private_channels')
         print("Fetching messages from", len(private_channels_list), "private channels")
         for channel in private_channels_list:
@@ -238,7 +220,7 @@ if __name__ == "__main__":
             parse_messages(channel_dir, messages, 'group')
 
     if args.publicChannels is not None:
-        public_channels_list = filter_conversations(slack.get_conversations('public_channel'))
+        public_channels_list = list(filter(lambda conversation: conversation['is_member'], slack.get_conversations('public_channel')))
         dump_file(public_channels_list, 'public_channels')
         print("Fetching messages from", len(public_channels_list), "public channels")
         for channel in public_channels_list:
@@ -276,7 +258,7 @@ if __name__ == "__main__":
             users_white_list.update(channel_members)
             parse_messages(channel_dir, messages, 'im')
 
-    users = filter_users(slack.get_users(), users_white_list)
+    users = list(filter(lambda user: user['id'] in users_white_list, slack.get_users()))
     print(f"Users in chats:{len(users)}")
     dump_file(users, 'users')
 
